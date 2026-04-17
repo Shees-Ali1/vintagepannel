@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <title>Vintage Pop &amp; Rock Radio — Catalog Editor</title>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap");
+
+    :root {
+      --bg: #e8ecf1;
+      --surface: #ffffff;
+      --surface2: #f4f6f9;
+      --border: #c5ced9;
+      --text: #141820;
+      --muted: #5a6570;
+      --accent: #7a3cc0;
+      --accent-bright: #9a5ce0;
+      --danger: #c53030;
+      --danger-bg: #fbe9e9;
+      --ok: #15803d;
+      --radius: 12px;
+      --font: "DM Sans", system-ui, -apple-system, sans-serif;
+      --shadow: 0 1px 3px rgba(15, 20, 30, 0.08);
+      --shadow-lg: 0 8px 28px rgba(15, 20, 30, 0.1);
+      color-scheme: light;
+    }
+    * { box-sizing: border-box; }
+    html, body.app {
+      height: 100%;
+      margin: 0;
+    }
+    body.app {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .topbar {
+      flex-shrink: 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.65rem 0.85rem;
+      padding: 0.65rem clamp(0.75rem, 2vw, 1.25rem);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      z-index: 100;
+    }
+    .topbar h1 {
+      margin: 0;
+      font-size: clamp(0.95rem, 2vw, 1.1rem);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      flex: 1 1 220px;
+      min-width: 0;
+    }
+    .topbar h1 span { color: var(--accent); font-weight: 700; }
+    .btn {
+      font-family: inherit;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      padding: 0.45rem 0.9rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+    }
+    .btn:hover {
+      background: #fff;
+      border-color: #a8b4c4;
+      box-shadow: var(--shadow);
+    }
+    .btn.primary {
+      background: linear-gradient(180deg, #b384ed 0%, var(--accent-bright) 100%);
+      color: #1a0a2c;
+      border-color: #7a3cc0;
+    }
+    .btn.primary:hover { filter: brightness(1.04); }
+    .btn.ghost { background: transparent; }
+    .btn.ghost:hover { background: var(--surface2); }
+    .btn.danger {
+      background: var(--danger-bg);
+      color: var(--danger);
+      border-color: rgba(197, 48, 48, 0.35);
+    }
+    .btn.danger:hover {
+      background: #f7d6d6;
+      border-color: var(--danger);
+      box-shadow: var(--shadow);
+    }
+    .btn.icon {
+      padding: 0.3rem 0.55rem;
+      font-size: 0.78rem;
+      line-height: 1;
+    }
+    input[type="file"] { display: none; }
+
+    .stats {
+      font-size: 0.78rem;
+      color: var(--muted);
+      width: 100%;
+      order: 1;
+    }
+    @media (min-width: 720px) {
+      .stats { width: auto; order: 0; }
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      padding: 0.65rem 1rem;
+      border-radius: var(--radius);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 0.875rem;
+      box-shadow: var(--shadow-lg);
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 200;
+      max-width: min(420px, calc(100vw - 2rem));
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.ok { border-color: rgba(21, 128, 61, 0.35); }
+    .toast.err { border-color: rgba(197, 48, 48, 0.4); }
+
+    .app-body {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .root-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      padding: 0.5rem clamp(0.5rem, 1.5vw, 1.25rem) 1.25rem;
+    }
+
+    .hint-details {
+      flex-shrink: 0;
+      margin: 0.5rem clamp(0.5rem, 1.5vw, 1.25rem) 0;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .hint-details > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 0.5rem 0.85rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--muted);
+      user-select: none;
+    }
+    .hint-details > summary::-webkit-details-marker { display: none; }
+    .hint-details[open] > summary { border-bottom: 1px solid var(--border); color: var(--text); }
+    .hint-details .hint-inner {
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin: 0;
+      padding: 0.65rem 0.85rem 0.85rem;
+    }
+    .hint-details code { color: var(--accent); font-size: 0.8em; }
+
+    .album {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 1rem;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .album-head {
+      display: grid;
+      grid-template-columns: min(160px, 28vw) 1fr;
+      gap: clamp(0.75rem, 2vw, 1.35rem);
+      padding: clamp(0.85rem, 2vw, 1.25rem);
+      background: linear-gradient(180deg, var(--surface2) 0%, var(--surface) 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    @media (max-width: 700px) {
+      .album-head { grid-template-columns: 1fr; }
+    }
+    .album-cover {
+      width: 100%;
+      max-width: 160px;
+      aspect-ratio: 1;
+      height: auto;
+      border-radius: 10px;
+      object-fit: cover;
+      background: #dde2e8;
+      border: 1px solid var(--border);
+      justify-self: start;
+    }
+    @media (max-width: 700px) {
+      .album-cover { max-width: 120px; }
+    }
+    .album-meta-grid {
+      display: grid;
+      gap: 0.55rem;
+      min-width: 0;
+    }
+    .album-top-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: flex-end;
+    }
+    .album-top-row > div:first-child { flex: 1 1 auto; min-width: 0; }
+    .album-top-row .btn.danger { flex-shrink: 0; margin-bottom: 1px; }
+    .row2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.55rem;
+    }
+    @media (max-width: 520px) {
+      .row2 { grid-template-columns: 1fr; }
+    }
+    label.lbl {
+      display: block;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+      margin-bottom: 0.2rem;
+      font-weight: 600;
+    }
+    input.in, textarea.in, select.in {
+      width: 100%;
+      font-family: inherit;
+      font-size: 0.875rem;
+      padding: 0.5rem 0.6rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+    }
+    input.in:focus, textarea.in:focus, select.in:focus {
+      outline: 2px solid rgba(122, 60, 192, 0.3);
+      outline-offset: 1px;
+      border-color: var(--accent-bright);
+    }
+    textarea.in { min-height: 64px; resize: vertical; }
+
+    .tracks-wrap {
+      padding: 0.65rem clamp(0.5rem, 1.2vw, 1rem) 1rem;
+    }
+    .tracks-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0 0.15rem 0.5rem;
+    }
+    .tracks-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin: 0;
+    }
+    .track-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
+      gap: 0.75rem;
+      align-content: start;
+      min-height: 24px;
+    }
+    .track-card {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      padding: 0.75rem 0.85rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      min-width: 0;
+    }
+    .track-card__bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      min-height: 2rem;
+    }
+    .drag {
+      cursor: grab;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 2rem;
+      height: 2rem;
+      flex-shrink: 0;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1;
+      user-select: none;
+      border-radius: 8px;
+      border: 1px dashed var(--border);
+      background: var(--surface);
+    }
+    .drag:hover { color: var(--text); border-style: solid; }
+    .drag:active { cursor: grabbing; }
+    .seq-badge {
+      font-variant-numeric: tabular-nums;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+    .track-card__bar .dur-in {
+      width: 4.5rem;
+      margin-left: auto;
+      flex-shrink: 0;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .track-card__bar .btn.icon { flex-shrink: 0; }
+    .track-card .title-in {
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+    .track-card-fields {
+      display: grid;
+      gap: 0.4rem;
+    }
+    .track-card-fields .field .in {
+      font-size: 0.8125rem;
+    }
+
+    .sortable-ghost {
+      opacity: 0.55;
+      background: #dfe6ef !important;
+      border-style: dashed !important;
+    }
+    .sortable-drag { opacity: 0.95; box-shadow: var(--shadow-lg); }
+
+    .empty {
+      padding: clamp(2rem, 6vh, 4rem) 1rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .filter-bar {
+      flex-shrink: 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 0.55rem 1rem;
+      margin: 0.5rem clamp(0.5rem, 1.5vw, 1.25rem) 0;
+      padding: 0.65rem 0.85rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .filter-bar .filter-field {
+      flex: 1 1 240px;
+      min-width: 200px;
+    }
+    .filter-bar select.in {
+      cursor: pointer;
+      padding: 0.55rem 0.65rem;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 15, 25, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+      padding: 1rem;
+    }
+    .modal-backdrop.show { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      max-width: 440px;
+      width: 100%;
+      padding: 1.1rem 1.15rem 1rem;
+    }
+    .modal h2 {
+      margin: 0 0 0.4rem;
+      font-size: 1rem;
+    }
+    .modal p {
+      margin: 0 0 1rem;
+      font-size: 0.875rem;
+      color: var(--muted);
+      word-break: break-word;
+    }
+    .modal .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+  </style>
+</head>
+<body class="app">
+  <header class="topbar">
+    <h1><span>Vintage Pop &amp; Rock Radio</span> — catalog editor</h1>
+    <span class="stats" id="stats">No file loaded</span>
+    <button type="button" class="btn ghost" id="btnLoad">Load JSON…</button>
+    <button type="button" class="btn" id="btnReload" title="Reload from server">Reload from folder</button>
+    <button type="button" class="btn primary" id="btnSave">Save JSON</button>
+    <input type="file" id="fileIn" accept=".json,application/json" />
+  </header>
+
+  <div class="app-body">
+    <details class="hint-details" id="hintDetails">
+      <summary>Quick tips (filter, delete, save)</summary>
+      <p class="hint-inner">
+        <strong>Filter by album</strong> narrows the view. Album <strong>year</strong>, <strong>thumbnail</strong>, <strong>artist</strong>, and <strong>description</strong> apply to every track in that album.
+        Drag the handle on each song card to reorder; <strong>sequence</strong> renumbers on save.
+        Use <strong>Delete album</strong> to remove an entire album (all its tracks) or the <strong>✕</strong> button on a song card to remove a single track.
+        For <strong>instant save</strong> into the same file on disk, run <code>python3 vintage_server.py</code> then open the editor URL it prints. Plain <code>http.server</code> cannot write files; Save will fall back to download / file picker.
+      </p>
+    </details>
+    <div class="filter-bar" id="filterBar" hidden>
+      <div class="filter-field">
+        <label class="lbl" for="albumFilter">Filter by album</label>
+        <select class="in" id="albumFilter" title="Choose one album or show all"></select>
+      </div>
+    </div>
+    <div class="root-scroll">
+      <div id="root"></div>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+
+  <div class="modal-backdrop" id="confirmModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <h2 id="confirmTitle">Confirm</h2>
+      <p id="confirmMsg">Are you sure?</p>
+      <div class="actions">
+        <button type="button" class="btn" id="confirmCancel">Cancel</button>
+        <button type="button" class="btn danger" id="confirmOk">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const JSON_NAME = "Vintage Pop & Rock Radio (new).json";
+    const SAVE_ENDPOINT = "/__save_catalog__";
+    /** @type {Map<string, object>} id -> original track (for waveformData etc.) */
+    let originals = new Map();
+    /** @type {{ albums: Album[] }} */
+    let model = { albums: [] };
+    /** null = show all albums; else index in model.albums */
+    let filterAlbumIndex = null;
+
+    /**
+     * @typedef {{ title: string, description: string, duration: number, duration_string: string, elapsedDuration?: number, url: string, id: string, thumbnail: string, mp3_url: string, artist: string, album: string, year: string, waveformData?: number[], sequence: number }} Track
+     * @typedef {{ key: string, albumTitle: string, year: string, artist: string, thumbnail: string, description: string, tracks: Track[] }} Album
+     */
+
+    function toast(msg, ok = true) {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.className = "toast show " + (ok ? "ok" : "err");
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => { el.classList.remove("show"); }, 4200);
+    }
+
+    /* -------- Confirm modal -------- */
+    function askConfirm({ title, message, okLabel = "Delete" }) {
+      return new Promise((resolve) => {
+        const back = document.getElementById("confirmModal");
+        const tEl = document.getElementById("confirmTitle");
+        const mEl = document.getElementById("confirmMsg");
+        const okBtn = document.getElementById("confirmOk");
+        const cancelBtn = document.getElementById("confirmCancel");
+        tEl.textContent = title || "Confirm";
+        mEl.textContent = message || "Are you sure?";
+        okBtn.textContent = okLabel;
+        back.classList.add("show");
+        back.setAttribute("aria-hidden", "false");
+
+        function cleanup(result) {
+          back.classList.remove("show");
+          back.setAttribute("aria-hidden", "true");
+          okBtn.removeEventListener("click", onOk);
+          cancelBtn.removeEventListener("click", onCancel);
+          back.removeEventListener("click", onBackdrop);
+          document.removeEventListener("keydown", onKey);
+          resolve(result);
+        }
+        function onOk() { cleanup(true); }
+        function onCancel() { cleanup(false); }
+        function onBackdrop(e) { if (e.target === back) cleanup(false); }
+        function onKey(e) {
+          if (e.key === "Escape") cleanup(false);
+          if (e.key === "Enter") cleanup(true);
+        }
+        okBtn.addEventListener("click", onOk);
+        cancelBtn.addEventListener("click", onCancel);
+        back.addEventListener("click", onBackdrop);
+        document.addEventListener("keydown", onKey);
+        setTimeout(() => okBtn.focus(), 30);
+      });
+    }
+
+    function groupFromFlat(arr) {
+      originals = new Map();
+      for (const t of arr) {
+        if (t && t.id != null) originals.set(String(t.id), JSON.parse(JSON.stringify(t)));
+      }
+      const order = [];
+      const map = new Map();
+      for (const t of arr) {
+        if (!t || typeof t !== "object") continue;
+        const key = String(t.album ?? "(no album)");
+        if (!map.has(key)) {
+          map.set(key, []);
+          order.push(key);
+        }
+        map.get(key).push(JSON.parse(JSON.stringify(t)));
+      }
+      const albums = order.map((key) => {
+        const tracks = map.get(key);
+        tracks.sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+        const first = tracks[0];
+        return {
+          key,
+          albumTitle: key,
+          year: String(first.year ?? ""),
+          artist: String(first.artist ?? ""),
+          thumbnail: String(first.thumbnail ?? ""),
+          description: String(first.description ?? ""),
+          tracks,
+        };
+      });
+      return { albums };
+    }
+
+    function refreshOriginalsFromFlat(flat) {
+      originals = new Map();
+      for (const t of flat) {
+        if (t && t.id != null) originals.set(String(t.id), JSON.parse(JSON.stringify(t)));
+      }
+    }
+
+    function flattenModel() {
+      const out = [];
+      let globalSeq = 1;
+      for (const al of model.albums) {
+        al.tracks.forEach((tr) => {
+          const base = originals.has(String(tr.id))
+            ? JSON.parse(JSON.stringify(originals.get(String(tr.id))))
+            : JSON.parse(JSON.stringify(tr));
+          base.album = al.albumTitle;
+          base.year = al.year;
+          base.artist = al.artist;
+          base.thumbnail = al.thumbnail;
+          base.description = al.description;
+          base.sequence = globalSeq++;
+          base.title = tr.title;
+          base.url = tr.url;
+          base.id = tr.id;
+          base.mp3_url = tr.mp3_url;
+          base.duration = Number(tr.duration) || 0;
+          base.duration_string = tr.duration_string ?? formatDur(base.duration);
+          base.elapsedDuration = tr.elapsedDuration ?? 0;
+          out.push(base);
+        });
+      }
+      return out;
+    }
+
+    function formatDur(sec) {
+      const s = Math.max(0, Math.floor(Number(sec) || 0));
+      const m = Math.floor(s / 60);
+      const r = s % 60;
+      return m + ":" + String(r).padStart(2, "0");
+    }
+
+    function updateStats(indicesShown) {
+      const totalAlbums = model.albums.length;
+      const totalTracks = model.albums.reduce((a, b) => a + b.tracks.length, 0);
+      const el = document.getElementById("stats");
+      if (!totalAlbums) {
+        el.textContent = "No file loaded";
+        return;
+      }
+      if (indicesShown.length === totalAlbums) {
+        el.textContent = `${totalAlbums} albums · ${totalTracks} tracks`;
+        return;
+      }
+      const shownTracks = indicesShown.reduce((sum, i) => sum + model.albums[i].tracks.length, 0);
+      el.textContent = `Showing ${indicesShown.length} album · ${shownTracks} tracks (of ${totalAlbums} · ${totalTracks})`;
+    }
+
+    function syncAlbumFilterSelect() {
+      const bar = document.getElementById("filterBar");
+      const sel = document.getElementById("albumFilter");
+      if (!bar || !sel) return;
+      if (!model.albums.length) {
+        bar.hidden = true;
+        return;
+      }
+      bar.hidden = false;
+      const keep =
+        filterAlbumIndex != null &&
+        filterAlbumIndex >= 0 &&
+        filterAlbumIndex < model.albums.length
+          ? String(filterAlbumIndex)
+          : "";
+      if (keep === "") filterAlbumIndex = null;
+      sel.innerHTML = "";
+      const allOpt = document.createElement("option");
+      allOpt.value = "";
+      allOpt.textContent = "All albums (" + model.albums.length + ")";
+      sel.appendChild(allOpt);
+      model.albums.forEach((al, i) => {
+        const opt = document.createElement("option");
+        opt.value = String(i);
+        opt.textContent = al.albumTitle + " — " + al.tracks.length + " tracks";
+        sel.appendChild(opt);
+      });
+      sel.value = keep;
+    }
+
+    async function deleteAlbumByIndex(ai) {
+      const al = model.albums[ai];
+      if (!al) return;
+      const ok = await askConfirm({
+        title: "Delete album",
+        message: `Remove "${al.albumTitle}" and its ${al.tracks.length} track${al.tracks.length === 1 ? "" : "s"}? This cannot be undone until you re-load from disk.`,
+        okLabel: "Delete album",
+      });
+      if (!ok) return;
+      model.albums.splice(ai, 1);
+      if (filterAlbumIndex === ai) filterAlbumIndex = null;
+      else if (filterAlbumIndex != null && filterAlbumIndex > ai) filterAlbumIndex -= 1;
+      render();
+      toast(`Album "${al.albumTitle}" removed. Click Save JSON to persist.`, true);
+    }
+
+    async function deleteTrack(ai, ti) {
+      const al = model.albums[ai];
+      if (!al) return;
+      const tr = al.tracks[ti];
+      if (!tr) return;
+      const ok = await askConfirm({
+        title: "Delete track",
+        message: `Remove "${tr.title || "(untitled)"}" from "${al.albumTitle}"?`,
+        okLabel: "Delete track",
+      });
+      if (!ok) return;
+      al.tracks.splice(ti, 1);
+      if (al.tracks.length === 0) {
+        model.albums.splice(ai, 1);
+        if (filterAlbumIndex === ai) filterAlbumIndex = null;
+        else if (filterAlbumIndex != null && filterAlbumIndex > ai) filterAlbumIndex -= 1;
+        toast(`Last track removed — album "${al.albumTitle}" also deleted.`, true);
+      } else {
+        toast(`Track "${tr.title || "(untitled)"}" removed.`, true);
+      }
+      render();
+    }
+
+    function render() {
+      const root = document.getElementById("root");
+      if (!model.albums.length) {
+        document.getElementById("filterBar").hidden = true;
+        root.innerHTML = '<div class="empty">Load <strong>' + JSON_NAME + "</strong> to begin.</div>";
+        updateStats([]);
+        return;
+      }
+      syncAlbumFilterSelect();
+      const sel = document.getElementById("albumFilter");
+      if (sel && sel.value !== "") {
+        const idx = parseInt(sel.value, 10);
+        filterAlbumIndex = Number.isFinite(idx) ? idx : null;
+      } else {
+        filterAlbumIndex = null;
+      }
+      const indicesToShow =
+        filterAlbumIndex != null &&
+        filterAlbumIndex >= 0 &&
+        filterAlbumIndex < model.albums.length
+          ? [filterAlbumIndex]
+          : model.albums.map((_, i) => i);
+
+      root.innerHTML = "";
+      for (let k = 0; k < indicesToShow.length; k++) {
+        const ai = indicesToShow[k];
+        const al = model.albums[ai];
+        const card = document.createElement("section");
+        card.className = "album";
+        card.dataset.albumIndex = String(ai);
+
+        const head = document.createElement("div");
+        head.className = "album-head";
+        const img = document.createElement("img");
+        img.className = "album-cover";
+        img.alt = "";
+        const placeholder = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23222' width='100' height='100'/%3E%3C/svg%3E";
+        img.src = al.thumbnail || placeholder;
+        img.onerror = () => { img.onerror = null; img.src = placeholder; };
+
+        const meta = document.createElement("div");
+        meta.className = "album-meta-grid";
+
+        const nameRow = document.createElement("div");
+        nameRow.className = "album-top-row";
+        const nameWrap = document.createElement("div");
+        nameWrap.innerHTML = '<label class="lbl">Album name</label><input class="in al-name" type="text" />';
+        const inName = nameWrap.querySelector(".al-name");
+        inName.value = al.albumTitle;
+        inName.addEventListener("input", () => {
+          al.albumTitle = inName.value;
+          const opt = document.querySelector("#albumFilter option[value=\"" + ai + "\"]");
+          if (opt) opt.textContent = al.albumTitle + " — " + al.tracks.length + " tracks";
+        });
+        const delAlbumBtn = document.createElement("button");
+        delAlbumBtn.type = "button";
+        delAlbumBtn.className = "btn danger";
+        delAlbumBtn.textContent = "Delete album";
+        delAlbumBtn.title = "Remove this album and all its tracks";
+        delAlbumBtn.addEventListener("click", () => deleteAlbumByIndex(ai));
+        nameRow.appendChild(nameWrap);
+        nameRow.appendChild(delAlbumBtn);
+        meta.appendChild(nameRow);
+
+        const restHtml =
+          '<div class="row2">' +
+          '<div><label class="lbl">Artist (whole album)</label><input class="in al-artist" type="text" /></div>' +
+          '<div><label class="lbl">Year (whole album)</label><input class="in al-year" type="text" /></div>' +
+          '</div>' +
+          '<div><label class="lbl">Thumbnail URL (whole album)</label><input class="in al-thumb" type="text" /></div>' +
+          '<div><label class="lbl">Description (whole album)</label><textarea class="in al-desc"></textarea></div>';
+        const restWrap = document.createElement("div");
+        restWrap.style.display = "grid";
+        restWrap.style.gap = "0.55rem";
+        restWrap.innerHTML = restHtml;
+        meta.appendChild(restWrap);
+
+        const inArtist = restWrap.querySelector(".al-artist");
+        const inYear = restWrap.querySelector(".al-year");
+        const inThumb = restWrap.querySelector(".al-thumb");
+        const inDesc = restWrap.querySelector(".al-desc");
+        inArtist.value = al.artist;
+        inYear.value = al.year;
+        inThumb.value = al.thumbnail;
+        inDesc.value = al.description;
+
+        const bindAl = (prop, el) => {
+          el.addEventListener("input", () => {
+            al[prop] = el.value;
+            if (prop === "thumbnail") img.src = el.value || img.src;
+          });
+        };
+        bindAl("artist", inArtist);
+        bindAl("year", inYear);
+        bindAl("thumbnail", inThumb);
+        bindAl("description", inDesc);
+
+        inThumb.addEventListener("change", () => { img.src = al.thumbnail || img.src; });
+
+        head.appendChild(img);
+        head.appendChild(meta);
+        card.appendChild(head);
+
+        const tw = document.createElement("div");
+        tw.className = "tracks-wrap";
+        const thr = document.createElement("div");
+        thr.className = "tracks-header";
+        const tl = document.createElement("p");
+        tl.className = "tracks-label";
+        tl.textContent = "Tracks — drag handle to reorder · " + al.tracks.length + " total";
+        thr.appendChild(tl);
+        tw.appendChild(thr);
+
+        const list = document.createElement("div");
+        list.className = "track-list";
+        list.dataset.albumIndex = String(ai);
+
+        al.tracks.forEach((tr, ti) => {
+          const row = document.createElement("div");
+          row.className = "track-card";
+          row.dataset.trackIndex = String(ti);
+
+          const bar = document.createElement("div");
+          bar.className = "track-card__bar";
+          const drag = document.createElement("div");
+          drag.className = "drag";
+          drag.title = "Drag to reorder";
+          drag.textContent = "☰";
+          const seqEl = document.createElement("span");
+          seqEl.className = "seq-badge";
+          seqEl.textContent = "#" + String(ti + 1);
+          const dIn = document.createElement("input");
+          dIn.type = "text";
+          dIn.className = "in dur-in";
+          dIn.value = tr.duration_string ?? formatDur(tr.duration);
+          dIn.placeholder = "0:00";
+          dIn.title = "Duration";
+          dIn.addEventListener("input", () => { tr.duration_string = dIn.value; });
+          dIn.addEventListener("change", () => {
+            const parts = dIn.value.split(":").map((x) => parseInt(x, 10));
+            if (parts.length === 2 && !parts.some(isNaN)) {
+              tr.duration = parts[0] * 60 + parts[1];
+            }
+          });
+          const delTrackBtn = document.createElement("button");
+          delTrackBtn.type = "button";
+          delTrackBtn.className = "btn danger icon";
+          delTrackBtn.textContent = "✕";
+          delTrackBtn.title = "Remove this track";
+          delTrackBtn.addEventListener("click", () => {
+            const row2 = delTrackBtn.closest(".track-card");
+            const ti2 = row2 ? Number(row2.dataset.trackIndex) : ti;
+            deleteTrack(ai, Number.isFinite(ti2) ? ti2 : ti);
+          });
+          bar.appendChild(drag);
+          bar.appendChild(seqEl);
+          bar.appendChild(dIn);
+          bar.appendChild(delTrackBtn);
+
+          const tTitle = document.createElement("input");
+          tTitle.type = "text";
+          tTitle.className = "in title-in";
+          tTitle.value = tr.title ?? "";
+          tTitle.placeholder = "Track title";
+          tTitle.addEventListener("input", () => { tr.title = tTitle.value; });
+
+          const fields = document.createElement("div");
+          fields.className = "track-card-fields";
+
+          function addField(lbl, inputEl) {
+            const wrap = document.createElement("div");
+            wrap.className = "field";
+            const lab = document.createElement("label");
+            lab.className = "lbl";
+            lab.textContent = lbl;
+            wrap.appendChild(lab);
+            wrap.appendChild(inputEl);
+            fields.appendChild(wrap);
+          }
+
+          const tUrl = document.createElement("input");
+          tUrl.type = "text";
+          tUrl.className = "in";
+          tUrl.value = tr.url ?? "";
+          tUrl.placeholder = "https://…";
+          tUrl.addEventListener("input", () => { tr.url = tUrl.value; });
+          addField("URL", tUrl);
+
+          const tMp3 = document.createElement("input");
+          tMp3.type = "text";
+          tMp3.className = "in";
+          tMp3.value = tr.mp3_url ?? "";
+          tMp3.placeholder = "mp3_url";
+          tMp3.addEventListener("input", () => { tr.mp3_url = tMp3.value; });
+          addField("MP3 URL", tMp3);
+
+          const tId = document.createElement("input");
+          tId.type = "text";
+          tId.className = "in";
+          tId.value = tr.id ?? "";
+          tId.placeholder = "Video / track id";
+          tId.addEventListener("input", () => { tr.id = tId.value; });
+          addField("ID", tId);
+
+          row.appendChild(bar);
+          row.appendChild(tTitle);
+          row.appendChild(fields);
+          list.appendChild(row);
+        });
+
+        tw.appendChild(list);
+        card.appendChild(tw);
+        root.appendChild(card);
+
+        Sortable.create(list, {
+          handle: ".drag",
+          animation: 150,
+          ghostClass: "sortable-ghost",
+          dragClass: "sortable-drag",
+          onEnd: (evt) => {
+            const from = evt.oldIndex;
+            const to = evt.newIndex;
+            if (from === to || from == null || to == null) return;
+            const arr = al.tracks;
+            const [moved] = arr.splice(from, 1);
+            arr.splice(to, 0, moved);
+            list.querySelectorAll(".track-card").forEach((row, i) => {
+              const badge = row.querySelector(".seq-badge");
+              if (badge) badge.textContent = "#" + String(i + 1);
+              row.dataset.trackIndex = String(i);
+            });
+          },
+        });
+      }
+      updateStats(indicesToShow);
+    }
+
+    async function loadFromFetch() {
+      const r = await fetch(encodeURIComponent(JSON_NAME), { cache: "no-store" });
+      if (!r.ok) throw new Error(r.status + " " + r.statusText);
+      const data = await r.json();
+      if (!Array.isArray(data)) throw new Error("JSON root must be an array");
+      filterAlbumIndex = null;
+      model = groupFromFlat(data);
+      render();
+      toast("Loaded " + JSON_NAME + " from server.");
+    }
+
+    function loadFromText(text) {
+      const data = JSON.parse(text);
+      if (!Array.isArray(data)) throw new Error("JSON root must be an array");
+      filterAlbumIndex = null;
+      model = groupFromFlat(data);
+      render();
+      toast("JSON loaded.");
+    }
+
+    async function saveJson() {
+      const flat = flattenModel();
+      const text = JSON.stringify(flat, null, 2) + "\n";
+      const blob = new Blob([text], { type: "application/json" });
+
+      try {
+        const r = await fetch(SAVE_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json; charset=utf-8" },
+          body: JSON.stringify(flat),
+        });
+        if (r.ok) {
+          refreshOriginalsFromFlat(flat);
+          toast("Saved — " + JSON_NAME + " updated on disk.", true);
+          return;
+        }
+      } catch (_) { /* fall through */ }
+
+      if ("showSaveFilePicker" in window) {
+        try {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: JSON_NAME,
+            types: [{ description: "JSON", accept: { "application/json": [".json"] } }],
+          });
+          const writable = await handle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          refreshOriginalsFromFlat(flat);
+          toast("Saved to selected file.", true);
+          return;
+        } catch (e) {
+          if (e && e.name === "AbortError") {
+            toast("Save cancelled.", false);
+            return;
+          }
+        }
+      }
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = JSON_NAME;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast("No save server — downloaded " + JSON_NAME + ". Run python3 vintage_server.py for instant disk save.", false);
+    }
+
+    document.getElementById("albumFilter").addEventListener("change", (e) => {
+      const v = e.target.value;
+      filterAlbumIndex = v === "" ? null : parseInt(v, 10);
+      if (filterAlbumIndex != null && !Number.isFinite(filterAlbumIndex)) filterAlbumIndex = null;
+      render();
+    });
+
+    document.getElementById("btnLoad").addEventListener("click", () => document.getElementById("fileIn").click());
+    document.getElementById("fileIn").addEventListener("change", (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try { loadFromText(String(reader.result)); }
+        catch (err) { toast(String(err.message || err), false); }
+      };
+      reader.readAsText(f);
+      e.target.value = "";
+    });
+    document.getElementById("btnReload").addEventListener("click", () => {
+      loadFromFetch().catch((err) => toast("Fetch failed: " + err.message + " — use Load JSON or run vintage_server.py.", false));
+    });
+    document.getElementById("btnSave").addEventListener("click", () => {
+      if (!model.albums.length) { toast("Nothing to save.", false); return; }
+      saveJson().catch((err) => toast(String(err.message || err), false));
+    });
+
+    loadFromFetch().catch(() => {
+      document.getElementById("root").innerHTML =
+        '<div class="empty">Could not load <strong>' + JSON_NAME + '</strong> automatically. Use <strong>Load JSON</strong> or start <code>python3 vintage_server.py</code> in this folder.</div>';
+    });
+  </script>
+</body>
+</html>
