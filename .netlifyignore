@@ -1,0 +1,5 @@
+.git
+.gitignore
+*.bak
+.DS_Store
+.cursor

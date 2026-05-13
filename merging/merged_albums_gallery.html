@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Album gallery — The Final One</title>
+  <style>
+    :root {
+      --bg: #0f0f12;
+      --surface: #1a1a21;
+      --border: #2a2a34;
+      --text: #ececf1;
+      --muted: #9898a8;
+      --accent: #c9a227;
+      --danger: #c44;
+      --danger-hi: #e05555;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: rgba(15, 15, 18, 0.92);
+      backdrop-filter: blur(8px);
+      z-index: 10;
+    }
+    .header h1 { margin: 0 0 0.35rem; font-size: 1.35rem; font-weight: 600; }
+    .header p { margin: 0; font-size: 0.9rem; color: var(--muted); }
+    .toolbar {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 0.75rem;
+    }
+    .toolbar input {
+      flex: 1;
+      min-width: 200px;
+      max-width: 360px;
+      padding: 0.5rem 0.75rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+    .toolbar span { font-size: 0.85rem; color: var(--muted); }
+    .toolbar label.channel-lbl {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-right: 0.35rem;
+    }
+    .channel-select {
+      min-width: 220px;
+      max-width: min(420px, 100%);
+      padding: 0.5rem 0.65rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .channel-select:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+    .err {
+      margin-top: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      background: #3a1515;
+      border: 1px solid var(--danger);
+      border-radius: 8px;
+      color: #faa;
+      font-size: 0.9rem;
+      display: none;
+    }
+    .err.show { display: block; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1.25rem;
+      padding: 1.5rem;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+    .card {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .card:hover, .card:focus-within {
+      transform: translateY(-2px);
+      border-color: var(--accent);
+      box-shadow: 0 8px 28px rgba(0,0,0,0.35);
+    }
+    .card.hidden { display: none; }
+    .card-delete {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      z-index: 5;
+      width: 2.25rem;
+      height: 2.25rem;
+      padding: 0;
+      border: none;
+      border-radius: 8px;
+      background: rgba(15, 15, 18, 0.85);
+      color: var(--danger-hi);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s;
+    }
+    .card-delete:hover {
+      background: rgba(196, 68, 68, 0.35);
+      color: #fff;
+    }
+    .card-delete:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .card-delete svg { width: 1.1rem; height: 1.1rem; display: block; }
+    .card-image-wrap {
+      aspect-ratio: 1;
+      background: #111;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .card-body { padding: 1rem 1rem 1.15rem; }
+    .card-title { margin: 0 0 0.35rem; font-size: 1.05rem; line-height: 1.3; font-weight: 600; }
+    .card-artist { margin: 0 0 0.5rem; font-size: 0.88rem; color: var(--accent); }
+    .card-year { margin: 0 0 0.6rem; font-size: 0.8rem; color: var(--muted); letter-spacing: 0.04em; }
+    .card-desc {
+      margin: 0;
+      font-size: 0.82rem;
+      line-height: 1.45;
+      color: var(--muted);
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.72);
+      z-index: 100;
+      padding: 1rem;
+      align-items: center;
+      justify-content: center;
+    }
+    .backdrop.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      max-width: 720px;
+      width: 100%;
+      max-height: 90vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    }
+    .modal-head {
+      display: flex;
+      gap: 1rem;
+      padding: 1.25rem;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .modal-head img {
+      width: 120px;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+    .modal-head-text h2 { margin: 0 0 0.35rem; font-size: 1.2rem; }
+    .modal-head-text .sub { margin: 0; font-size: 0.9rem; color: var(--accent); }
+    .modal-head-text .yr { margin: 0.5rem 0 0; font-size: 0.85rem; color: var(--muted); }
+    .modal-body {
+      padding: 1rem 1.25rem 1.5rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .edit-field { margin-bottom: 1rem; }
+    .edit-field label {
+      display: block;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+    .edit-field input[type="text"] {
+      width: 100%;
+      max-width: 12rem;
+      padding: 0.5rem 0.65rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+    .edit-field input[type="text"].input-wide {
+      max-width: none;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    .edit-field textarea {
+      width: 100%;
+      min-height: 220px;
+      padding: 0.65rem 0.75rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: #d8d8e0;
+      font-size: 0.9rem;
+      line-height: 1.55;
+      font-family: inherit;
+      resize: vertical;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 0.5rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--border);
+    }
+    .btn-save {
+      padding: 0.55rem 1rem;
+      border: none;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #1a1508;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .btn-save:hover { filter: brightness(1.08); }
+    .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+    .save-hint { font-size: 0.8rem; color: var(--muted); margin: 0; }
+    .modal-close {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      width: 2.25rem;
+      height: 2.25rem;
+      border: none;
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 1.25rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .modal-wrap { position: relative; width: 100%; max-width: 720px; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>Album gallery — channels</h1>
+    <p>Pick a <strong>channel</strong> (<code>final one/…</code> catalog). Each card is one <strong>album title</strong> — compilations with different per-track artists still appear as <strong>one</strong> card (&quot;Various artists&quot;), one thumbnail/year/description for the whole album. Save updates <strong>every track with that album name</strong> (shuffle companion too when present). Per-track artist strings are only rewritten when the album has a single artist.</p>
+    <div class="toolbar">
+      <label class="channel-lbl" for="channelSelect">Channel</label>
+      <select id="channelSelect" class="channel-select" title="Catalog JSON under final one/"></select>
+      <input type="search" id="filter" placeholder="Filter by artist or album…" autocomplete="off">
+    </div>
+    <div class="err" id="err"></div>
+  </header>
+  <main class="grid" id="grid"></main>
+  <div class="backdrop" id="backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-wrap">
+      <button type="button" class="modal-close" id="closeBtn" aria-label="Close">×</button>
+      <div class="modal" id="modal">
+        <div class="modal-head">
+          <img id="modalImg" src="" alt="">
+          <div class="modal-head-text">
+            <h2 id="modal-title"></h2>
+            <p class="sub" id="modalArtist"></p>
+          </div>
+        </div>
+        <div class="modal-body">
+          <div class="edit-field">
+            <label for="editArtist">Artist name</label>
+            <input type="text" id="editArtist" class="input-wide" name="artist" placeholder="Artist" autocomplete="off">
+          </div>
+          <div class="edit-field">
+            <label for="editAlbum">Album name</label>
+            <input type="text" id="editAlbum" class="input-wide" name="album" placeholder="Album title" autocomplete="off">
+          </div>
+          <div class="edit-field">
+            <label for="editYear">Year</label>
+            <input type="text" id="editYear" name="year" placeholder="e.g. 1984" autocomplete="off">
+          </div>
+          <div class="edit-field">
+            <label for="editThumb">Thumbnail URL</label>
+            <input type="text" id="editThumb" class="input-wide" name="thumbnail" placeholder="https://…" autocomplete="off">
+          </div>
+          <div class="edit-field">
+            <label for="editDesc">Description</label>
+            <textarea id="editDesc" name="description" spellcheck="true"></textarea>
+          </div>
+          <p class="save-hint">Matching is by <strong>album title</strong> only. Thumbnail, year, description, and album name apply to every track with that album. Artist name is applied to all tracks only when the album is not a multi-artist compilation.</p>
+          <div class="modal-actions">
+            <button type="button" class="btn-save" id="saveAlbumBtn">Save to all tracks</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+(function () {
+  const PREVIEW_CHARS = 220;
+  const SAVE_PREFIX = "/__save_catalog__/";
+
+  /**
+   * Netlify / static hosting:
+   * - Publish a directory that contains BOTH this file (e.g. merging/) AND final one/… JSON (repo root in netlify.toml is ideal).
+   * - If JSON is hosted elsewhere, set before load: window.CATALOG_JSON_BASE = "https://cdn.example.com/my-catalog/";
+   * - POST save only works with catalog_server.py locally unless you set window.CATALOG_SAVE_BASE to that server’s save URL prefix.
+   */
+  const CHANNELS = [
+    { id: "south", label: "The South — perfectremaing", file: "final one/thesouth/perfectremaing.json" },
+    { id: "tunnel", label: "Tunnel — remaining tunnel", file: "final one/tunnel/remaining tunnel json.json" },
+    { id: "godfrey", label: "Godfrey", file: "final one/godfrey/godfreyfinallllll.json" },
+    { id: "vintagePR", label: "Vintage pop & rock", file: "final one/vintage pop and rock/vintage_pop_&rock.json" },
+    { id: "vintageJC", label: "Vintage & Classical Jazz", file: "final one/vintage & Classical Jazz/Vintage & Classical Jazz!.json" },
+    { id: "vintageRD", label: "Vintage Reggae & Dancehall", file: "final one/vintage Reggae & Dancehall/Vintage Reggae & Dancehall Radio!.json" },
+    { id: "randb", label: "R&B", file: "final one/RandB/randb.json" },
+    { id: "warren", label: "Warren G", file: "final one/warren/warren_g_the_prof.json" },
+    {
+      id: "vhouse",
+      label: "Vintage House / Euro Dance",
+      file: "final one/Vintage House, Euro Dance & Techno Radio/Vintage House, Euro Dance & Techno Radio.json",
+    },
+  ];
+
+  let currentCatalogFile = CHANNELS[0].file;
+
+  function catalogFetchUrl(file) {
+    const raw = String(file || "").trim().replace(/^\/+/, "");
+    if (!raw) return String(window.location.href || "/");
+    const enc = raw.split("/").map((seg) => encodeURIComponent(seg)).join("/");
+    const baseOpt =
+      typeof window.CATALOG_JSON_BASE === "string" ? window.CATALOG_JSON_BASE.trim() : "";
+    if (baseOpt) {
+      const b = baseOpt.replace(/\/?$/, "/");
+      if (/^https?:\/\//i.test(b) || b.startsWith("//")) return b + enc;
+      return new URL(enc, new URL(b, window.location.href)).href;
+    }
+    // JSON paths are relative to repo root: same parent directory as merging/ (../ from this page).
+    return new URL("../" + enc, window.location.href).href;
+  }
+
+  function catalogSaveLikelyAvailable() {
+    if (window.CATALOG_SAVE_DISABLED === true) return false;
+    const b = typeof window.CATALOG_SAVE_BASE === "string" ? window.CATALOG_SAVE_BASE.trim() : "";
+    if (b) return true;
+    const h = String(window.location.hostname || "");
+    return h === "localhost" || h === "127.0.0.1" || h === "[::1]";
+  }
+
+  function getSaveUrl() {
+    const encFile = encodeURIComponent(currentCatalogFile);
+    const base = typeof window.CATALOG_SAVE_BASE === "string" ? window.CATALOG_SAVE_BASE.trim() : "";
+    if (base) {
+      const b = base.replace(/\/?$/, "/");
+      return b + encFile;
+    }
+    return SAVE_PREFIX + encFile;
+  }
+
+  function formatDurationString(sec) {
+    sec = Math.max(0, parseInt(String(sec), 10) || 0);
+    const m = Math.floor(sec / 60);
+    const r = sec % 60;
+    return m + ":" + String(r).padStart(2, "0");
+  }
+
+  function nestedAlbumsToFlat(albums) {
+    const flat = [];
+    let globalSeq = 1;
+    let elapsedTotal = 0;
+    for (const album of albums) {
+      if (!album || typeof album !== "object") continue;
+      const titleAlbum = album.title != null ? String(album.title) : "(no album)";
+      const artistAlbum = String(album.artist || "").trim();
+      const yearAlbum = String(album.year || "");
+      const thumbAlbum = String(album.thumbnail || "");
+      const descAlbum = String(album.description || "");
+      const songs = Array.isArray(album.songs) ? album.songs : [];
+      const sorted = [...songs].sort((a, b) => {
+        const sa = a && a.sequence != null ? Number(a.sequence) : 0;
+        const sb = b && b.sequence != null ? Number(b.sequence) : 0;
+        return sa - sb;
+      });
+      for (const s of sorted) {
+        if (!s || typeof s !== "object") continue;
+        const dur = parseInt(String(s.duration), 10) || 0;
+        const row = {
+          title: s.title != null ? String(s.title) : "",
+          description:
+            s.description != null && String(s.description).trim()
+              ? String(s.description)
+              : descAlbum,
+          duration: dur,
+          duration_string:
+            s.duration_string != null ? String(s.duration_string) : formatDurationString(dur),
+          elapsedDuration: elapsedTotal,
+          url: s.url != null ? String(s.url) : "",
+          id: String(s.id != null ? s.id : ""),
+          thumbnail:
+            s.thumbnail != null && String(s.thumbnail).trim()
+              ? String(s.thumbnail)
+              : thumbAlbum,
+          mp3_url: s.mp3_url != null ? String(s.mp3_url) : "",
+          artist: String(s.artist || artistAlbum || "").trim(),
+          album: String(s.album || titleAlbum || "").trim(),
+          year: String(s.year || yearAlbum),
+          sequence: globalSeq++,
+        };
+        if (Array.isArray(s.waveformData) && s.waveformData.length > 0) {
+          row.waveformData = s.waveformData;
+        }
+        flat.push(row);
+        elapsedTotal += dur;
+      }
+    }
+    return flat;
+  }
+
+  function reconcilePlaylistOrder(tracks) {
+    if (!Array.isArray(tracks) || !tracks.length) return [];
+    let elapsed = 0;
+    return tracks.map((t, i) => {
+      if (!t || typeof t !== "object") return t;
+      const dur = Math.max(0, parseInt(String(t.duration), 10) || 0);
+      const row = {
+        ...t,
+        duration: dur,
+        duration_string: formatDurationString(dur),
+        sequence: i + 1,
+        elapsedDuration: elapsed,
+      };
+      elapsed += dur;
+      return row;
+    });
+  }
+
+  function catalogPayloadToFlatTracks(data) {
+    let flat = [];
+    if (!data) flat = [];
+    else if (Array.isArray(data)) {
+      flat = data.filter((t) => t && typeof t === "object" && !Array.isArray(t));
+    } else if (typeof data === "object" && Array.isArray(data.albums)) {
+      flat = nestedAlbumsToFlat(data.albums);
+    }
+    return reconcilePlaylistOrder(flat);
+  }
+
+  function fillChannelSelect() {
+    const sel = document.getElementById("channelSelect");
+    sel.innerHTML = "";
+    for (const c of CHANNELS) {
+      const opt = document.createElement("option");
+      opt.value = c.file;
+      opt.textContent = c.label;
+      sel.appendChild(opt);
+    }
+    sel.value = currentCatalogFile;
+  }
+
+  function showErr(msg) {
+    const el = document.getElementById("err");
+    el.textContent = msg;
+    el.classList.toggle("show", !!msg);
+  }
+
+  function previewText(desc) {
+    const s = String(desc || "").replace(/\n/g, " ").trim();
+    if (s.length <= PREVIEW_CHARS) return s;
+    const cut = s.slice(0, PREVIEW_CHARS - 1);
+    const sp = cut.lastIndexOf(" ");
+    return (sp > 0 ? cut.slice(0, sp) : cut) + "…";
+  }
+
+  function isTrackRow(t) {
+    return t != null && typeof t === "object" && !Array.isArray(t);
+  }
+
+  /** One row per album title; compilations → variousArtists, one shared thumbnail/year/description. */
+  function rowsForUI(tracks) {
+    const meta = new Map();
+    for (const t of tracks) {
+      if (!isTrackRow(t)) continue;
+      const album = String(t.album || "").trim();
+      if (!album) continue;
+      const ar = String(t.artist || "").trim();
+      let m = meta.get(album);
+      if (!m) {
+        m = { artists: new Set(), thumbnail: "", year: "", description: "" };
+        meta.set(album, m);
+      }
+      if (ar) m.artists.add(ar);
+      const th = String(t.thumbnail || "").trim();
+      if (th && !m.thumbnail) m.thumbnail = th;
+      const yr = String(t.year != null ? t.year : "").trim();
+      if (yr && !m.year) m.year = yr;
+      const d = String(t.description || "").trim();
+      if (d && !m.description) m.description = d;
+    }
+    const rows = [];
+    for (const [album, m] of meta) {
+      const arr = [...m.artists];
+      const variousArtists = arr.length > 1;
+      const artist = variousArtists ? "Various artists" : (arr[0] || "");
+      rows.push({
+        album,
+        artist,
+        year: m.year,
+        thumbnail: m.thumbnail,
+        description: m.description,
+        variousArtists,
+        preview: previewText(m.description),
+      });
+    }
+    rows.sort((a, b) =>
+      a.album.toLowerCase().localeCompare(b.album.toLowerCase(), undefined, { sensitivity: "base" })
+    );
+    return rows;
+  }
+
+  let catalogTracks = [];
+  let albumRows = [];
+  /** album title when opened; variousArtists → do not overwrite per-track artist on save */
+  let currentModalAlbum = null;
+
+  function syncModalArtistFromInput() {
+    const v = document.getElementById("editArtist").value.trim();
+    document.getElementById("modalArtist").textContent = v || "—";
+  }
+
+  function syncModalTitleFromAlbumInput() {
+    const v = document.getElementById("editAlbum").value.trim();
+    document.getElementById("modal-title").textContent = v || "—";
+  }
+
+  function escapeAttr(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;");
+  }
+
+  function renderGrid() {
+    const grid = document.getElementById("grid");
+    const trashSvg =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+
+    grid.innerHTML = albumRows
+      .map(
+        (a, i) => `
+    <article class="card" tabindex="0" data-i="${i}" aria-label="Album ${escapeAttr(a.album)}">
+      <button type="button" class="card-delete" title="Delete album and all tracks" aria-label="Delete album">
+        ${trashSvg}
+      </button>
+      <div class="card-image-wrap">
+        <img class="card-image" src="${escapeAttr(a.thumbnail)}" alt="" loading="lazy" width="280" height="280">
+      </div>
+      <div class="card-body">
+        <h2 class="card-title">${escapeHtml(a.album)}</h2>
+        <p class="card-artist">${escapeHtml(a.artist)}</p>
+        <p class="card-year">${escapeHtml(a.year)}</p>
+        <p class="card-desc">${escapeHtml(a.preview)}</p>
+      </div>
+    </article>`
+      )
+      .join("");
+
+    document.querySelectorAll(".card").forEach((card) => {
+      card.addEventListener("click", (e) => {
+        if (e.target.closest(".card-delete")) return;
+        openModal(parseInt(card.dataset.i, 10));
+      });
+      card.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          if (e.target.closest(".card-delete")) return;
+          e.preventDefault();
+          openModal(parseInt(card.dataset.i, 10));
+        }
+      });
+    });
+
+    document.querySelectorAll(".card-delete").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const card = btn.closest(".card");
+        const i = parseInt(card.dataset.i, 10);
+        deleteAlbum(albumRows[i]);
+      });
+    });
+
+    applyFilter();
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function openModal(i) {
+    const a = albumRows[i];
+    if (!a) return;
+    const va = !!a.variousArtists;
+    currentModalAlbum = {
+      album: a.album,
+      variousArtists: va,
+      singleArtist: va ? "" : String(a.artist || "").trim(),
+    };
+    document.getElementById("modalImg").src = a.thumbnail || "";
+    document.getElementById("editAlbum").value = a.album || "";
+    syncModalTitleFromAlbumInput();
+    const editArtist = document.getElementById("editArtist");
+    if (va) {
+      document.getElementById("modalArtist").textContent = "Various artists";
+      editArtist.value = "";
+      editArtist.readOnly = true;
+      editArtist.title = "Multiple artists on this album — each track keeps its own artist; only album fields are bulk-updated.";
+    } else {
+      editArtist.readOnly = false;
+      editArtist.title = "";
+      document.getElementById("modalArtist").textContent = a.artist || "—";
+      editArtist.value = a.artist || "";
+      syncModalArtistFromInput();
+    }
+    document.getElementById("editYear").value = a.year != null ? String(a.year) : "";
+    document.getElementById("editThumb").value = a.thumbnail || "";
+    document.getElementById("editDesc").value = a.description || "";
+    const saveBtn = document.getElementById("saveAlbumBtn");
+    const canSave = catalogSaveLikelyAvailable();
+    saveBtn.disabled = !canSave;
+    saveBtn.title = canSave
+      ? ""
+      : "Read-only here: run catalog_server.py locally, or set window.CATALOG_SAVE_BASE to your save endpoint.";
+    document.getElementById("backdrop").classList.add("open");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeModal() {
+    currentModalAlbum = null;
+    const editArtist = document.getElementById("editArtist");
+    editArtist.readOnly = false;
+    editArtist.title = "";
+    document.getElementById("backdrop").classList.remove("open");
+    document.body.style.overflow = "";
+  }
+
+  async function saveAlbumEdits() {
+    if (!currentModalAlbum) return;
+    if (!catalogSaveLikelyAvailable()) {
+      showErr(
+        "Saving is disabled on this host. Use python3 catalog_server.py locally, or set window.CATALOG_SAVE_BASE."
+      );
+      return;
+    }
+    const va = !!currentModalAlbum.variousArtists;
+    const albumOriginal = String(currentModalAlbum.album || "").trim();
+    const singleArtist = String(currentModalAlbum.singleArtist || "").trim();
+    const newAlbum = document.getElementById("editAlbum").value.trim();
+    const newArtist =
+      document.getElementById("editArtist").value.trim() || singleArtist;
+    const yearStr = document.getElementById("editYear").value.trim();
+    const thumbnail = document.getElementById("editThumb").value.trim();
+    const description = document.getElementById("editDesc").value;
+
+    if (!newAlbum) {
+      showErr("Album name cannot be empty.");
+      return;
+    }
+
+    let updated = 0;
+    const next = catalogTracks.map((t) => {
+      if (!isTrackRow(t)) return t;
+      if (String(t.album || "").trim() !== albumOriginal) return t;
+      updated++;
+      const u = { ...t, album: newAlbum, year: yearStr, thumbnail: thumbnail, description: description };
+      if (!va) u.artist = newArtist;
+      return u;
+    });
+
+    if (updated === 0) {
+      showErr("No matching tracks to update.");
+      return;
+    }
+
+    const setFields = {
+      album: newAlbum,
+      year: yearStr,
+      thumbnail: thumbnail,
+      description: description,
+    };
+    if (!va) setFields.artist = newArtist;
+
+    const shuffleSync = {
+      matchAlbum: albumOriginal,
+      albumOnly: va,
+      setFields,
+    };
+    if (!va) shuffleSync.matchArtist = singleArtist;
+
+    const btn = document.getElementById("saveAlbumBtn");
+    btn.disabled = true;
+    showErr("");
+    try {
+      const r = await fetch(getSaveUrl(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tracks: next,
+          shuffleSync,
+        }),
+      });
+      if (!r.ok) {
+        const t = await r.text();
+        throw new Error(t || r.status + " " + r.statusText);
+      }
+      let shuffleNote = "";
+      try {
+        const j = await r.json();
+        if (j && typeof j.shufflePatched === "number" && j.shufflePatched > 0) {
+          shuffleNote = " Also patched " + j.shufflePatched + " row(s) in shuffle companion JSON.";
+          console.info("[gallery]" + shuffleNote);
+        }
+      } catch (e) {
+        /* ignore non-JSON legacy responses */
+      }
+      catalogTracks = next;
+      albumRows = rowsForUI(catalogTracks);
+      renderGrid();
+      const still = albumRows.findIndex((row) => row.album === newAlbum);
+      if (still >= 0) openModal(still);
+      else closeModal();
+    } catch (e) {
+      showErr("Save failed: " + (e && e.message ? e.message : String(e)));
+    } finally {
+      btn.disabled = !catalogSaveLikelyAvailable();
+    }
+  }
+
+  async function deleteAlbum(a) {
+    if (!a) return;
+    if (!catalogSaveLikelyAvailable()) {
+      showErr(
+        "Delete requires the catalog save API. Use catalog_server.py locally, or set window.CATALOG_SAVE_BASE."
+      );
+      return;
+    }
+    const alb = String(a.album || "").trim();
+    const who = a.variousArtists ? "all tracks whose album is" : `all tracks by ${a.artist} on`;
+    const msg = `Delete ${who} "${a.album}" from the catalog? This cannot be undone.`;
+    if (!confirm(msg)) return;
+
+    const next = catalogTracks.filter((t) => {
+      if (!isTrackRow(t)) return true;
+      return String(t.album || "").trim() !== alb;
+    });
+    const removed = catalogTracks.length - next.length;
+    if (removed === 0) {
+      showErr("No matching tracks found — nothing deleted.");
+      return;
+    }
+
+    showErr("");
+    try {
+      const r = await fetch(getSaveUrl(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next),
+      });
+      if (!r.ok) {
+        const t = await r.text();
+        throw new Error(t || r.status + " " + r.statusText);
+      }
+      catalogTracks = next;
+      albumRows = rowsForUI(catalogTracks);
+      renderGrid();
+      closeModal();
+    } catch (e) {
+      showErr("Save failed: " + (e && e.message ? e.message : String(e)));
+    }
+  }
+
+  const filterEl = document.getElementById("filter");
+
+  function applyFilter() {
+    const q = filterEl.value.trim().toLowerCase();
+    const cards = document.querySelectorAll(".card");
+    cards.forEach((card) => {
+      const i = parseInt(card.dataset.i, 10);
+      if (Number.isNaN(i)) {
+        card.classList.add("hidden");
+        return;
+      }
+      const a = albumRows[i];
+      if (!a) {
+        card.classList.add("hidden");
+        return;
+      }
+      const hay = ((a.artist || "") + " " + (a.album || "")).toLowerCase();
+      const show = !q || hay.includes(q);
+      card.classList.toggle("hidden", !show);
+    });
+  }
+
+  filterEl.addEventListener("input", applyFilter);
+
+  document.getElementById("saveAlbumBtn").addEventListener("click", () => {
+    saveAlbumEdits();
+  });
+  document.getElementById("editAlbum").addEventListener("input", syncModalTitleFromAlbumInput);
+  document.getElementById("editArtist").addEventListener("input", syncModalArtistFromInput);
+  document.getElementById("editThumb").addEventListener("input", () => {
+    const v = document.getElementById("editThumb").value.trim();
+    document.getElementById("modalImg").src = v || "";
+  });
+
+  document.getElementById("channelSelect").addEventListener("change", async () => {
+    const sel = document.getElementById("channelSelect");
+    currentCatalogFile = sel.value || CHANNELS[0].file;
+    closeModal();
+    filterEl.value = "";
+    await loadCatalog();
+  });
+
+  document.getElementById("closeBtn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    closeModal();
+  });
+  document.getElementById("backdrop").addEventListener("click", (e) => {
+    if (e.target.id === "backdrop") closeModal();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeModal();
+  });
+
+  async function loadCatalog() {
+    showErr("");
+    try {
+      const path = catalogFetchUrl(currentCatalogFile);
+      const r = await fetch(path, { cache: "no-store" });
+      if (!r.ok) throw new Error("GET " + path + " → " + r.status);
+      const raw = await r.json();
+      catalogTracks = catalogPayloadToFlatTracks(raw);
+      if (!catalogTracks.length) {
+        throw new Error("No tracks (need a JSON array or { albums: […] })");
+      }
+      albumRows = rowsForUI(catalogTracks);
+      renderGrid();
+    } catch (e) {
+      const detail = e && e.message ? e.message : String(e);
+      showErr(
+        "Could not load catalog — " +
+          detail +
+          ". Local: run python3 catalog_server.py then open http://127.0.0.1:8765/merging/merged_albums_gallery.html. " +
+          "Netlify: set Site publish directory to the repo root (must include merging/ and final one/ JSON), " +
+          "or set window.CATALOG_JSON_BASE to the folder URL where those JSON files are hosted."
+      );
+    }
+  }
+
+  async function init() {
+    fillChannelSelect();
+    await loadCatalog();
+  }
+
+  init();
+})();
+  </script>
+</body>
+</html>

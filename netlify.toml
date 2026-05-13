@@ -1,0 +1,29 @@
+# Static deploy: open repo/folder as Site → publish = project root
+# https://docs.netlify.com/configure-builds/file-based-configuration/
+
+[build]
+  # Must include merging/merged_albums_gallery.html AND final one/**/*.json (do not publish only merging/).
+  publish = "."
+  # No build step — HTML + JSON served as static files
+
+# Editor HTML/JS must not stay cached or the sidebar CHANNELS list looks "stuck" on old builds.
+[[headers]]
+  for = "/warren_g_editor.html"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate, max-age=0"
+
+[[headers]]
+  for = "/merging/merged_albums_gallery.html"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate, max-age=0"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate, max-age=0"
+
+# Landing URL opens the admin panel
+[[redirects]]
+  from = "/"
+  to = "/warren_g_editor.html"
+  status = 200

@@ -1,0 +1,11 @@
+# Local Netlify folder
+.netlify
+
+__pycache__/
+*.py[cod]
+.DS_Store
+.tmp_creep_upload/
+.venv-thumbs/
+*.mp3
+.thumbnail_s3_url_cache.json
+thumbnail_pipeline.log
